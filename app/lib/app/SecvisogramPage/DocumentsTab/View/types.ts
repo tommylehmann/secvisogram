@@ -8,6 +8,8 @@ interface Data {
     deletable: boolean
     canCreateVersion: boolean
     currentReleaseDate: string
+    version?: string
+    lastEdit?: string
   }>
 }
 

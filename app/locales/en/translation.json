@@ -31,7 +31,24 @@
     "uploadFromFilesystem": "Upload from filesystem",
     "useTemplate": "Use a template",
     "loadFromURL": "Load from URL",
-    "examples": "Examples"
+    "examples": "Examples",
+    "documentsTab": {
+      "columns": {
+        "title": "Document",
+        "advisoryId": "Advisory ID",
+        "version": "Version",
+        "lastEdit": "Last edit time",
+        "workflowState": "Workflow State",
+        "stateAction": "Change Workflow State"
+      },
+      "columnsButton": "Columns",
+      "columnsDialogTitle": "Visible columns",
+      "columnsDialogClose": "OK",
+      "sortAscending": "sorted ascending",
+      "sortDescending": "sorted descending",
+      "sortNone": "not sorted",
+      "empty": "—"
+    }
   },
   "arrays": {
     "defaultItemName": "Item",
