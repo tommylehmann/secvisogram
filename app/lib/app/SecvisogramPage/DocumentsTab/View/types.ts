@@ -1,6 +1,7 @@
 interface Data {
   advisories: Array<{
     advisoryId: string
+    documentTrackingId: string
     title: string
     owner: string
     workflowState: string

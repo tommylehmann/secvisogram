@@ -225,6 +225,12 @@ describe('SecvisogramPage / DocumentsTab — columns, sort, persistence', functi
       // Column now visible.
       columnHeader('advisoryId').should('exist')
 
+      // The cell renders the CSAF tracking ID (document.tracking.id),
+      // not the CMS-internal UUID — confirms `source: documentTrackingId`.
+      cy.get(
+        '[data-testid="advisory-aaaa-1111-id-list_entry-advisory_id"]',
+      ).should('contain.text', 'tracking-aaaa-1111-id')
+
       // Sort asc.
       sortButton('advisoryId').click()
       columnHeader('advisoryId').should('have.attr', 'aria-sort', 'ascending')

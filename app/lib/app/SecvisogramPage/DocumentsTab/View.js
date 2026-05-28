@@ -331,9 +331,9 @@ function renderCell({
         <span
           className="font-mono truncate block"
           data-testid={`advisory-${advisory.advisoryId}-list_entry-advisory_id`}
-          title={advisory.advisoryId}
+          title={advisory.documentTrackingId}
         >
-          {advisory.advisoryId}
+          {advisory.documentTrackingId}
         </span>
       )
     case 'version':

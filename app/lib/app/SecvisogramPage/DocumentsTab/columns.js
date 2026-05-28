@@ -11,6 +11,7 @@ import semver from 'semver'
  * @property {boolean} defaultVisible
  * @property {boolean} sortable
  * @property {ColumnKind} kind
+ * @property {string} [source] - row field to read for display/sort. Defaults to `id`.
  */
 
 /**
@@ -30,6 +31,10 @@ export const columns = Object.freeze([
   {
     id: 'advisoryId',
     labelKey: 'menu.documentsTab.columns.advisoryId',
+    // CSAF identifier (document.tracking.id), e.g. "RHBA-2019_0024".
+    // The CMS-internal UUID lives on `advisoryId` and is not what users
+    // recognise as "the advisory's ID".
+    source: 'documentTrackingId',
     defaultVisible: false,
     sortable: true,
     kind: 'string',
@@ -178,13 +183,14 @@ export function getComparator(columnId, direction = 'asc') {
   if (!column || !column.sortable) {
     return () => 0
   }
+  const field = column.source ?? column.id
   const sign = direction === 'desc' ? -1 : 1
   switch (column.kind) {
     case 'date':
       return (a, b) =>
         directionalCompare(
-          a[columnId],
-          b[columnId],
+          a[field],
+          b[field],
           sign,
           compareDates,
           isDatePresent,
@@ -192,8 +198,8 @@ export function getComparator(columnId, direction = 'asc') {
     case 'version':
       return (a, b) =>
         directionalCompare(
-          a[columnId],
-          b[columnId],
+          a[field],
+          b[field],
           sign,
           compareVersions,
           isPresentString,
@@ -202,8 +208,8 @@ export function getComparator(columnId, direction = 'asc') {
     default:
       return (a, b) =>
         directionalCompare(
-          a[columnId],
-          b[columnId],
+          a[field],
+          b[field],
           sign,
           compareStrings,
           isPresentString,
