@@ -71,10 +71,7 @@ export default function DocumentsTabView({
   )
 
   const advisories = data?.advisories ?? []
-  const { sortedRows, sort, toggleSort } = useSort(
-    advisories,
-    columnDefinitions,
-  )
+  const { sortedRows, sort, toggleSort } = useSort(advisories)
 
   const [editWorkflowStateDialogProps, setEditWorkflowStateDialogProps] =
     React.useState(
@@ -247,7 +244,8 @@ function HeaderCell({ column, sort, onToggleSort }) {
         ? 'ascending'
         : 'descending'
       : 'none'
-  const label = column.id === 'rowActions' ? '' : t(column.labelKey)
+  const label =
+    column.id === 'rowActions' || !column.labelKey ? '' : t(column.labelKey)
   const nextSortAnnouncement = !column.sortable
     ? ''
     : !isActive
@@ -271,7 +269,7 @@ function HeaderCell({ column, sort, onToggleSort }) {
           onClick={() => onToggleSort(column.id)}
         >
           <span>{label}</span>
-          <span aria-hidden="true">
+          <span aria-hidden="true" className={isActive ? 'text-blue-600' : ''}>
             {isActive ? (sort.direction === 'asc' ? '▲' : '▼') : ''}
           </span>
           <span className="sr-only">, {nextSortAnnouncement}</span>

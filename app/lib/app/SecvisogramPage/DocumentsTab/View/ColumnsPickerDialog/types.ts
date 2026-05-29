@@ -1,6 +1,6 @@
 type Column = {
   id: string
-  labelKey: string
+  labelKey?: string
   kind: 'string' | 'date' | 'version' | 'action'
   sortable: boolean
   defaultVisible: boolean

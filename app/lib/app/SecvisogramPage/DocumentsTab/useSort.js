@@ -1,5 +1,5 @@
 import React from 'react'
-import { getComparator } from './columns.js'
+import { columns, getComparator } from './columns.js'
 
 /**
  * @typedef {{ columnId: string, direction: 'asc' | 'desc' }} SortState
@@ -13,9 +13,12 @@ import { getComparator } from './columns.js'
  * When `sort` is `null` the rows are returned untouched (insertion order from
  * the backend response).
  *
+ * The set of sortable columns is sourced from the module-level `columns`
+ * definition so the hook and `getComparator` cannot disagree about which
+ * columns are sortable.
+ *
  * @template {Record<string, unknown>} TRow
  * @param {readonly TRow[]} rows
- * @param {ReadonlyArray<{ id: string, sortable: boolean }>} columns
  * @returns {{
  *   sortedRows: readonly TRow[],
  *   sort: SortState | null,
@@ -23,7 +26,7 @@ import { getComparator } from './columns.js'
  *   sortableColumnIds: ReadonlySet<string>,
  * }}
  */
-export default function useSort(rows, columns) {
+export default function useSort(rows) {
   const [sort, setSort] = React.useState(/** @type {SortState | null} */ (null))
 
   const sortableColumnIds = React.useMemo(
@@ -31,7 +34,7 @@ export default function useSort(rows, columns) {
       new Set(
         columns.filter((column) => column.sortable).map((column) => column.id),
       ),
-    [columns],
+    [],
   )
 
   const toggleSort = React.useCallback(

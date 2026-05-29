@@ -7,7 +7,8 @@ import semver from 'semver'
 /**
  * @typedef {object} ColumnDefinition
  * @property {string} id
- * @property {string} labelKey
+ * @property {string} [labelKey] - i18n key for the column header. Omitted only for
+ *   columns that never render a translated header (currently `rowActions`).
  * @property {boolean} defaultVisible
  * @property {boolean} sortable
  * @property {ColumnKind} kind
@@ -68,8 +69,9 @@ export const columns = Object.freeze([
     kind: 'action',
   },
   {
+    // No labelKey: the row-actions column never renders a header (View.js
+    // special-cases id === 'rowActions') and the picker excludes it.
     id: 'rowActions',
-    labelKey: 'menu.documentsTab.columns.rowActions',
     defaultVisible: true,
     sortable: false,
     kind: 'action',

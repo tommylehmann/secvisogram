@@ -75,7 +75,9 @@ export default React.forwardRef(
                       onToggle(column.id, event.target.checked)
                     }
                   />
-                  <label htmlFor={checkboxId}>{t(column.labelKey)}</label>
+                  <label htmlFor={checkboxId}>
+                    {column.labelKey ? t(column.labelKey) : column.id}
+                  </label>
                 </li>
               )
             })}
