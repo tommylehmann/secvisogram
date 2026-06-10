@@ -1,7 +1,9 @@
 name: Secvisogram CI
 
 on:
-  - pull_request
+  pull_request:
+  push:
+    branches: [main, main-fork]
 
 permissions:
   contents: read
