@@ -46,6 +46,8 @@ const testsSample = {
       changeable: true,
       deletable: false,
       isValid: true,
+      version: '1.0.1',
+      currentReleaseDate: '2022-08-08T12:34:56.789Z',
       allowedStateChanges: /** @type {const} */ ([
         'Review',
         'Approved',
@@ -69,6 +71,8 @@ const testsSample = {
       owner: 'Mustermann',
       changeable: true,
       deletable: false,
+      version: '0.0.3',
+      currentReleaseDate: '2022-07-28T14:25:36.475Z',
       allowedStateChanges: /** @type {const} */ ([]),
       revision: '1-1e6381e13c091b5b0b8b523ce3d412ba',
       csaf: {
@@ -90,6 +94,8 @@ const testsSample = {
       changeable: true,
       deletable: false,
       isValid: false,
+      version: '2.0.0',
+      currentReleaseDate: '2023-01-15T09:00:00.000Z',
       allowedStateChanges: /** @type {const} */ (['Published']),
       revision: '1-1e6381e13c091b5b0b8b523ce3d412ba',
       csaf: { document: { title: 'my first document' } },

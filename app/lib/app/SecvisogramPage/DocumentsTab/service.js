@@ -36,8 +36,8 @@ export async function getMoreData({ bookmark, limit = DEFAULT_PAGE_SIZE }) {
 
 /**
  * Normalises the paginated envelope into the shape the Documents tab consumes.
- * The per-row shape is passed through unchanged. Always called for a paginated
- * request (a `limit` is always sent), so the response is always the envelope.
+ * Always called for a paginated request (a `limit` is always sent), so the
+ * response is always the envelope.
  *
  * @param {Array<any> | { advisories?: Array<any>, bookmark?: string | null, hasMore?: boolean }} response
  * @returns {AdvisoryPage}
@@ -48,9 +48,29 @@ function normalizePage(response) {
       response
     )
   return {
-    advisories: page.advisories ?? [],
+    advisories: (page.advisories ?? []).map(normalizeAdvisory),
     bookmark: page.bookmark ?? null,
     hasMore: page.hasMore ?? false,
+  }
+}
+
+/**
+ * Normalises a single advisory row into a stable view shape. The CMS backend
+ * may not yet expose `version` (see questions.md Q1) and there is no separate
+ * edit timestamp field; until the backend exposes a dedicated last-modification
+ * time we alias `currentReleaseDate` as `lastEdit`.
+ *
+ * @param {Record<string, unknown>} advisory
+ */
+function normalizeAdvisory(advisory) {
+  return {
+    ...advisory,
+    version:
+      typeof advisory.version === 'string' ? advisory.version : undefined,
+    lastEdit:
+      typeof advisory.currentReleaseDate === 'string'
+        ? advisory.currentReleaseDate
+        : undefined,
   }
 }
 

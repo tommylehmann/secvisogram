@@ -1,5 +1,6 @@
-interface Advisory {
+type Advisory = {
   advisoryId: string
+  documentTrackingId: string
   title: string
   owner: string
   workflowState: string
@@ -7,6 +8,8 @@ interface Advisory {
   deletable: boolean
   canCreateVersion: boolean
   currentReleaseDate: string
+  version?: string
+  lastEdit?: string
 }
 
 interface Data {
