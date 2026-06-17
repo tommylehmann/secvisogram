@@ -1,8 +1,6 @@
 import { t } from 'i18next'
 import React from 'react'
 import AppErrorContext from '../../shared/context/AppErrorContext.js'
-import HistoryContext from '../../shared/context/HistoryContext.js'
-import sitemap from '../../shared/sitemap.js'
 import LoadingIndicator from '../View/LoadingIndicator.js'
 import Alert from '../View/shared/Alert.js'
 import EditWorkflowStateDialog from './View/EditWorkflowStateDialog.js'
@@ -19,7 +17,6 @@ export default function DocumentsTabView({
   onChangeWorkflowState,
   onCreateNewVersion,
 }) {
-  const history = React.useContext(HistoryContext)
   const { handleError } = React.useContext(AppErrorContext)
 
   const [alert, setAlert] = React.useState(
@@ -69,9 +66,10 @@ export default function DocumentsTabView({
    * @param {string} params.advisoryId
    */
   const onEditAdvisory = ({ advisoryId }) => {
-    onOpenAdvisory({ advisoryId }, () => {
-      history.pushState(null, '', sitemap.home.href([['tab', 'EDITOR']]))
-    })
+    // The callback is intentionally empty: the caller (View.onOpenAdvisory)
+    // already pushes ?tab=EDITOR&trackingId=<id> via onAdvisoryUrlChange before
+    // invoking the callback. A second pushState here would overwrite trackingId.
+    onOpenAdvisory({ advisoryId }, () => {})
   }
 
   return (
