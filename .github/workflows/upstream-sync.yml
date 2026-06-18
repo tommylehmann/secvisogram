@@ -1,0 +1,92 @@
+name: Sync upstream main
+
+# Runs from main-fork (the default branch) so schedule triggers fire.
+# Fetches upstream/main and fast-forwards origin/main ONLY if the current
+# origin/main is a strict ancestor of upstream/main.  On divergence the job
+# fails and opens/updates a tracking issue; it never force-pushes and never
+# touches main-fork.
+#
+# Security: C2 (least-privilege), C3 (no ${{}} in run), C4 (n/a – this job
+# does no npm/docker build so persist-credentials default is acceptable; the
+# push uses GITHUB_TOKEN via the checkout token, which is what contents:write
+# authorises), C7 (no pull_request trigger), C8 (FF-only).
+
+on:
+  schedule:
+    # 05:17 UTC daily – offset from CodeQL (06:24 Mon) and docker-vanilla (05:47)
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # push to origin/main
+  issues: write    # create/update tracking issue on divergence
+
+jobs:
+  sync:
+    name: Fast-forward origin/main to upstream/main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          # persist-credentials: true is the default; the push below uses the
+          # injected token.  No npm/docker build runs in this job (C4 N/A).
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/secvisogram/secvisogram.git
+          git fetch upstream main
+
+      - name: Fast-forward or abort
+        # C3: no ${{}} in run; all external values come via env.
+        # C8: gate on is-ancestor; never force-push; never touch main-fork.
+        run: |
+          if git merge-base --is-ancestor origin/main upstream/main; then
+            if git merge-base --is-ancestor upstream/main origin/main; then
+              echo "Already in sync – nothing to push."
+              exit 0
+            fi
+            echo "Fast-forward possible – pushing upstream/main to origin/main."
+            git push origin upstream/main:refs/heads/main
+          else
+            echo "::error::origin/main has diverged from upstream/main. No push performed."
+            exit 1
+          fi
+
+      - name: Create or update divergence tracking issue
+        if: failure()
+        # C3: ref_name is not user-controlled in a schedule/dispatch context,
+        # but we still pass it via env for consistency.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="upstream/main sync diverged – manual intervention required"
+          BODY="The scheduled sync detected that \`origin/main\` has diverged from \`upstream/main\` and cannot be fast-forwarded automatically.
+
+          **Action required:** Resolve the divergence manually (e.g. \`git fetch upstream && git rebase upstream/main\` on a local clone of \`main\`) then push.
+
+          Workflow run: ${RUN_URL}"
+
+          # Look for an open issue with the same title; update its body if found,
+          # or create a new one.
+          EXISTING=$(gh issue list --repo "$REPO" --state open \
+            --search "in:title upstream/main sync diverged" \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing issue #${EXISTING}"
+            gh issue edit "$EXISTING" --repo "$REPO" --body "$BODY"
+          else
+            echo "Creating new tracking issue"
+            gh issue create --repo "$REPO" \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "sync-diverged" || \
+            gh issue create --repo "$REPO" \
+              --title "$TITLE" \
+              --body "$BODY"
+          fi

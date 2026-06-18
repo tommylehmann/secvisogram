@@ -1,0 +1,81 @@
+name: Build and push secvisogram image
+description: >
+  Checks out a tagged commit (full history + submodules so git describe works),
+  logs in to GHCR, builds the root Dockerfile, and pushes OCI-labelled images.
+
+  Cache policy (C12): no GHA buildx cache is configured.  The vanilla build
+  executes untrusted upstream code; enabling a shared cache would let that build
+  poison the cache for a subsequent fork build.  Omitting cache avoids
+  cross-flavor contamination entirely (T1.2).  Build times remain acceptable for
+  a single-platform linux/amd64 build.
+
+inputs:
+  ref:
+    description: 'Git ref (tag or commit SHA) to check out and build'
+    required: true
+  tags:
+    description: 'Newline-separated list of fully-qualified image refs to push'
+    required: true
+  flavor:
+    description: '"vanilla" or "fork" – written to the org.secvisogram.flavor label'
+    required: true
+  version:
+    description: 'Version string (the git tag) written to the OCI version label'
+    required: true
+
+outputs:
+  revision:
+    description: 'Commit SHA of the checked-out ref (for provenance)'
+    value: ${{ steps.revision.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout ref with full history and submodules
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+        fetch-depth: 0
+        submodules: 'recursive'
+        # C4: persist-credentials false so the build container has no usable
+        # git push credential in .git/config (untrusted upstream code runs
+        # next via npm ci && npm run build inside the Dockerfile).
+        persist-credentials: false
+
+    - name: Capture commit SHA of the checked-out ref
+      id: revision
+      shell: bash
+      run: |
+        SHA=$(git rev-parse HEAD)
+        echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      # docker/setup-buildx-action v3.8.0
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+    - name: Log in to GHCR
+      # docker/login-action v3.3.0
+      # C11: only GITHUB_TOKEN is used – no external registry secret.
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Build and push
+      # docker/build-push-action v6.13.0
+      # C10: OCI provenance labels are mandatory (not best-effort).
+      # C11: no build-args carry tokens or secrets.
+      # C12: no cache-from / cache-to configured (see action description).
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64
+        push: true
+        tags: ${{ inputs.tags }}
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ steps.revision.outputs.sha }}
+          org.opencontainers.image.version=${{ inputs.version }}
+          org.secvisogram.flavor=${{ inputs.flavor }}

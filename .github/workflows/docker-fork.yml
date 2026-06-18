@@ -1,0 +1,107 @@
+name: Publish fork image
+
+# Triggers on an annotated kunbus-* tag pushed to the fork (main-fork commits
+# carry this workflow) or via workflow_dispatch for manual re-publish.
+#
+# Security: C2 (packages:write + contents:read only), C3 (no ${{}} in run),
+# C4 (persist-credentials:false in the build action), C5 (annotated-tag
+# verification), C6 (fork-* tag scheme, never writes vanilla/latest tags),
+# C7 (no pull_request trigger).
+
+on:
+  push:
+    tags:
+      - 'kunbus-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Annotated kunbus-* tag to build (e.g. kunbus-2.6.3.1)'
+        required: true
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  build:
+    name: Build and push fork image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag name
+        id: tagname
+        # C3: ref_name and inputs.tag are untrusted strings; passed via env
+        # and referenced as quoted "$VAR".
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="$REF_NAME"
+          fi
+
+          # Reject tags that don't match ^kunbus-
+          if ! echo "$TAG" | grep -qE '^kunbus-'; then
+            echo "::error::Tag '${TAG}' does not match ^kunbus-. Aborting."
+            exit 1
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      # Fetch the tag with full depth so git cat-file can inspect it.
+      # persist-credentials is left true here because this step runs *before*
+      # any untrusted build; the composite action re-checks out with
+      # persist-credentials: false.
+      - name: Fetch tag for verification
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tagname.outputs.tag }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify annotated tag and derive version
+        id: resolve
+        # C5: verify git cat-file -t == "tag" (annotated) before building.
+        # C6: derive only fork-<version> and fork-latest; never write vanilla tags.
+        # C3: TAG value comes from a prior output (attacker-controlled only in
+        # the sense that the pusher chose the tag name, which was already
+        # validated to match ^kunbus-).
+        env:
+          TAG: ${{ steps.tagname.outputs.tag }}
+          IMAGE_OWNER: tommylehmann
+        run: |
+          TAG_TYPE=$(git cat-file -t "$TAG" 2>/dev/null || echo "missing")
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "::error::Tag '${TAG}' is type '${TAG_TYPE}', not an annotated tag. Aborting."
+            exit 1
+          fi
+
+          # Derive Docker-safe version: strip leading 'kunbus-'.
+          VERSION="${TAG#kunbus-}"
+
+          # Sanity-check: version must not contain '+' (Docker tags forbid it).
+          if echo "$VERSION" | grep -q '+'; then
+            echo "::error::Derived version '${VERSION}' contains '+', not valid in a Docker tag."
+            exit 1
+          fi
+
+          IMAGE="ghcr.io/${IMAGE_OWNER}/secvisogram"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<TAGS_DELIMITER"
+            echo "${IMAGE}:fork-${VERSION}"
+            echo "${IMAGE}:fork-latest"
+            echo "TAGS_DELIMITER"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Tag: ${TAG}, version: ${VERSION}"
+          echo "Will push: fork-${VERSION}, fork-latest"
+
+      - name: Build and push fork image
+        uses: ./.github/actions/build-secvisogram-image
+        with:
+          ref: ${{ steps.tagname.outputs.tag }}
+          flavor: fork
+          version: ${{ steps.resolve.outputs.version }}
+          tags: ${{ steps.resolve.outputs.tags }}
