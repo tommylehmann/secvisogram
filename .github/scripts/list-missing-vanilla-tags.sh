@@ -7,9 +7,9 @@
 #
 # Floor / backfill rule (spec "Out of scope"):
 #   DEFAULT (scheduled / unattended) run:
-#     - If GHCR already has at least one vanilla-X.Y.Z tag, build only the
-#       upstream stable v* tags that are strictly newer (by semver) than the
-#       highest already-published vanilla tag.
+#     - If GHCR already has at least one vanilla image (vX.Y.Z / vanilla-X.Y.Z /
+#       bare X.Y.Z), build only the upstream stable v* tags that are strictly
+#       newer (by semver) than the highest already-published vanilla tag.
 #     - If GHCR has NO vanilla images yet (first ever run), build only the
 #       single newest stable upstream tag.
 #   MANUAL run (MANUAL_TAGS non-empty):
@@ -135,8 +135,11 @@ else
   HIGHEST_PUBLISHED=""
   while IFS= read -r ptag; do
     [ -z "$ptag" ] && continue
-    # Accept both bare "X.Y.Z" and "vanilla-X.Y.Z" as evidence of publication.
-    if echo "$ptag" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    # Accept "vX.Y.Z" (the published scheme), "vanilla-X.Y.Z", or a bare
+    # "X.Y.Z" as evidence of publication. vX.Y.Z mirrors the upstream tag name.
+    if echo "$ptag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+      vform="$ptag"
+    elif echo "$ptag" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
       vform="v${ptag}"
     elif echo "$ptag" | grep -qE '^vanilla-[0-9]+\.[0-9]+\.[0-9]+$'; then
       vform="v${ptag#vanilla-}"
@@ -179,13 +182,14 @@ else
 fi
 
 # ── 4. Compute missing tags ───────────────────────────────────────────────────
-# A vanilla tag vX.Y.Z is considered published if vanilla-X.Y.Z (or X.Y.Z)
-# already exists in GHCR.
+# A vanilla tag vX.Y.Z is considered published if vX.Y.Z (the published scheme),
+# vanilla-X.Y.Z, or a bare X.Y.Z already exists in GHCR.
 MISSING_TAGS=""
 while IFS= read -r vtag; do
   [ -z "$vtag" ] && continue
   version="${vtag#v}"
-  if echo "$GHCR_TAGS" | grep -qxF "vanilla-${version}" || \
+  if echo "$GHCR_TAGS" | grep -qxF "v${version}" || \
+     echo "$GHCR_TAGS" | grep -qxF "vanilla-${version}" || \
      echo "$GHCR_TAGS" | grep -qxF "${version}"; then
     echo "  ${vtag} already published – skipping." >&2
   else
@@ -232,8 +236,10 @@ for line in missing_raw.strip().splitlines():
     # F4 / F5: :latest only moves when building the true newest stable upstream
     # tag in an unattended (non-manual) run.
     push_latest = (not is_manual) and (vtag == newest)
+    # Vanilla scheme: :vX.Y.Z (mirrors the upstream tag name) + :vanilla-X.Y.Z
+    # (explicit flavor marker). :latest only for the newest stable (below).
     tags_list = [
-        f"{image}:{version}",
+        f"{image}:v{version}",
         f"{image}:vanilla-{version}",
     ]
     if push_latest:

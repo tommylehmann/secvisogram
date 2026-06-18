@@ -70,9 +70,21 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
+      # The local composite action lives on main-fork, not on the upstream v*
+      # tag, so it must be checked out before `uses: ./...` can resolve it.
+      # persist-credentials:false – we only need the action files, no git cred.
+      - name: Checkout main-fork (for the local build action)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Build and push vanilla image
         uses: ./.github/actions/build-secvisogram-image
         with:
+          # Build the tag from upstream: new upstream tags are not mirrored to
+          # the fork (the sync only mirrors the main branch, not tags).
+          repository: secvisogram/secvisogram
           ref: ${{ matrix.tag }}
           flavor: vanilla
           version: ${{ matrix.version }}

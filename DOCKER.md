@@ -35,8 +35,8 @@ The `org.secvisogram.flavor` OCI label is set to `fork`.
 
 | Tag | Flavor | Description |
 |-----|--------|-------------|
-| `X.Y.Z` | vanilla | Exact version built from upstream tag `vX.Y.Z` |
-| `vanilla-X.Y.Z` | vanilla | Same image, explicit flavor prefix |
+| `vX.Y.Z` | vanilla | Exact version built from upstream tag `vX.Y.Z` (mirrors the upstream tag name) |
+| `vanilla-X.Y.Z` | vanilla | Same image, explicit flavor marker |
 | `latest` | vanilla | Points to the highest-semver vanilla image published so far |
 | `fork-X.Y.Z.N` | fork | Fork release built from annotated tag `kunbus-X.Y.Z.N` |
 | `fork-latest` | fork | Points to the most recently published fork image |
@@ -47,7 +47,7 @@ publication.  For reproducible deployments pin to a versioned tag or a digest:
 ```sh
 # Versioned (immutable content, mutable name on re-publish is not a concern
 # because the same versioned tag is never overwritten):
-docker pull ghcr.io/tommylehmann/secvisogram:2.6.4
+docker pull ghcr.io/tommylehmann/secvisogram:v2.6.4
 docker pull ghcr.io/tommylehmann/secvisogram:fork-2.6.3.1
 
 # Digest-pinned (strongest guarantee):
@@ -61,7 +61,7 @@ docker pull ghcr.io/tommylehmann/secvisogram@sha256:<digest>
 docker pull ghcr.io/tommylehmann/secvisogram:latest
 
 # Specific upstream release
-docker pull ghcr.io/tommylehmann/secvisogram:2.6.4
+docker pull ghcr.io/tommylehmann/secvisogram:v2.6.4
 docker pull ghcr.io/tommylehmann/secvisogram:vanilla-2.6.4
 
 # Latest fork image
@@ -74,8 +74,8 @@ docker pull ghcr.io/tommylehmann/secvisogram:fork-2.6.3.1
 ## Identifying the flavor
 
 Every image carries the `org.secvisogram.flavor` OCI label.  You can also tell
-the flavors apart from the tag alone: vanilla tags are bare semver (`X.Y.Z`),
-prefixed with `vanilla-`, or `latest`; fork tags always start with `fork-`.
+the flavors apart from the tag alone: vanilla tags are `vX.Y.Z`, prefixed with
+`vanilla-`, or `latest`; fork tags always start with `fork-`.
 
 ```sh
 docker inspect --format '{{ index .Config.Labels "org.secvisogram.flavor" }}' \
