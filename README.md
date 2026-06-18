@@ -13,6 +13,7 @@
   - [Preview HTML view](#preview-html-view)
   - [CSAF Document JSON view](#csaf-document-json-view)
   - [Templates](#templates)
+  - [Advisory Permalinks](#advisory-permalinks)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
   - [Developer Guide, Architecture and Technical Design](#developer-guide-architecture-and-technical-design)
@@ -255,6 +256,53 @@ You can use this view and the embedded _Export CSAF_ button to always quickly ex
 ### Templates
 
 Secvisogram provides some very basic templates. You can use your own templates by saving them as JSON files on your filesystem and load using the "Upload from filesystem" in the "Create new document" dialog of the editor.
+
+[(back to top)](#bsi-secvisogram-csaf-20-web-editor)
+
+### Advisory Permalinks
+
+When using Secvisogram with the [CSAF CMS Server](https://github.com/secvisogram/csaf-cms-backend) backend, logged-in users can generate shareable deep links to specific advisories.
+
+#### Overview
+
+Advisory permalinks are **authorized deep links** to a specific advisory. The recipient must be logged in and have read access to that advisory to open it. Permalinks use the advisory's CSAF document tracking ID, so they always open the latest version.
+
+#### URL Format
+
+A permalink follows the pattern:
+
+    /?tab=EDITOR&trackingId=<CSAF document tracking id>
+
+Replace `<CSAF document tracking id>` with the human-readable tracking ID from your advisory (the `csaf/document/tracking/id` field).
+
+#### Getting a Permalink
+
+The **Copy link** button in the editor toolbar copies the current advisory's permalink to the clipboard. The button is visible only when:
+
+- The CMS backend is configured and accessible (`loginAvailable: true` in config)
+- You are logged in
+- An advisory is open in the editor
+- The advisory has a real (non-temporary) tracking ID
+
+Advisories with a temporary tracking ID (marked with a `-TEMP-` segment) are not yet shareable; the button is hidden until a real tracking ID is assigned.
+
+#### Sharing and Access Control
+
+The permalink is **not a public link**. When someone follows your permalink:
+
+- They must be logged in to the same CMS backend
+- They must have read access to that advisory
+- If they are not logged in, they are redirected to the login page and the advisory opens after authentication
+- If they lack read access, or the tracking ID cannot be found, they see the same "advisory not found or not accessible" message and the editor opens with a fresh document. The two cases are intentionally indistinguishable, so a permalink cannot be used to probe whether an advisory exists.
+
+#### Standalone Mode
+
+If Secvisogram is running in standalone mode (no backend configured), advisory permalinks are not available:
+
+- The **Copy link** button is not shown
+- Pasted permalink URLs are ignored; the editor opens with a fresh document
+
+[(back to top)](#bsi-secvisogram-csaf-20-web-editor)
 
 ## Documentation
 
