@@ -20,7 +20,7 @@ jobs:
     name: actionlint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run actionlint
         # raven-actions/actionlint v2.1.2 – SHA-pinned per C1/SA-8.

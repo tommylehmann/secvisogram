@@ -40,7 +40,7 @@ jobs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
       - name: Checkout main-fork (for the script)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -74,7 +74,7 @@ jobs:
       # tag, so it must be checked out before `uses: ./...` can resolve it.
       # persist-credentials:false – we only need the action files, no git cred.
       - name: Checkout main-fork (for the local build action)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
           persist-credentials: false
