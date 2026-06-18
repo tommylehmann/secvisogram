@@ -1,9 +1,15 @@
 name: Publish vanilla images
 
 # Runs from main-fork (the default branch) so schedule triggers fire.
-# A discovery job lists upstream v* tags, queries GHCR for already-published
-# tags (source of truth – no committed state file; ADR 0009), and fans out a
-# matrix build for each missing tag.
+# A discovery job lists upstream stable v* tags, queries GHCR for already-
+# published tags (source of truth – no committed state file; ADR 0009), and
+# fans out a matrix build for each missing tag.
+#
+# Floor rule: a scheduled run builds only tags newer than the highest already-
+# published vanilla tag; on first run (nothing published yet) it builds the
+# single newest stable tag.  Historical backfill is opt-in via workflow_dispatch
+# with an explicit tags input.  Pre-release tags (v*-rc.*, v*-beta.*) are
+# excluded from default discovery and never promoted to :latest.
 #
 # Security: C2 (packages:write + contents:read only), C3 (no ${{}} in run),
 # C4 (persist-credentials:false in the build action), C7 (no pull_request
@@ -57,7 +63,8 @@ jobs:
   build:
     name: Build ${{ matrix.tag }}
     needs: discover
-    if: ${{ needs.discover.outputs.matrix != '{"include":[]}' }}
+    # F7: use fromJson existence check rather than an exact JSON-whitespace comparison.
+    if: ${{ fromJson(needs.discover.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
