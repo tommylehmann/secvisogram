@@ -111,6 +111,31 @@ Please refer to [`DEVELOPMENT.md`](DEVELOPMENT.md) for a detailed description on
 4. Secvisogram starts on http://localhost:8080
 5. In Secvisogram, the validation by the validator service can be executed with hotkey CTRL + ALT + V.
 
+### Run locally with Docker (`make docker`)
+
+For a quick local container there is a `Makefile` wrapper around
+[`docker/Dockerfile`](docker/Dockerfile). It builds a production bundle and
+serves it with a non-root nginx on port 8080 inside the container.
+
+```sh
+make docker            # build the image and run it in the foreground
+```
+
+Then open http://localhost:8081. The host port and image name can be
+overridden:
+
+```sh
+make docker-build      # build only
+make docker-run        # run only
+make docker HOST_PORT=9000
+```
+
+The image tag is derived from the current git branch (e.g. `main-fork` ->
+`secvisogram:main-fork`), matching [`docker/build_container.sh`](docker/build_container.sh),
+which additionally tags release builds from annotated git tags. The bundled
+version string shown in the _About_ dialog comes from `git describe`, so the
+`.git` directory is part of the build context.
+
 ### Configure keybindings
 
 The following hotkeys are available by default:

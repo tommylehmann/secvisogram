@@ -5,5 +5,7 @@ export interface Sample {
     revision: string
     csaf: {}
     documentTrackingId: string
+    version?: string
+    currentReleaseDate?: string
   }>
 }
