@@ -1,6 +1,6 @@
 import { getLoginEnabledConfig } from '../../fixtures/appConfigData.js'
 import {
-  getGetAdvisoriesResponse,
+  getGetAdvisoriesPageResponse,
   getUserInfo,
   getUsers,
 } from '../../fixtures/cmsBackendData.js'
@@ -148,11 +148,12 @@ describe('SecvisogramPage / Permalink', function () {
   it('AC2: opening an advisory from the Documents tab writes trackingId to the URL', function () {
     interceptLoginEnabled()
     interceptUserInfo(user)
-    cy.intercept('/api/v1/advisories', getGetAdvisoriesResponse()).as(
-      'apiGetAdvisories',
-    )
+    cy.intercept(
+      { method: 'GET', pathname: '/api/v1/advisories', query: { limit: '*' } },
+      getGetAdvisoriesPageResponse(),
+    ).as('apiGetAdvisories')
 
-    const firstAdvisory = getGetAdvisoriesResponse()[0]
+    const firstAdvisory = getGetAdvisoriesPageResponse().advisories[0]
     // Provide a detail fixture that carries a proper csaf.document.tracking.id
     cy.intercept(
       `/api/v1/advisories/${firstAdvisory.advisoryId}`,
