@@ -106,6 +106,10 @@ NEWEST_UPSTREAM=$(echo "$UPSTREAM_TAGS" | sort -V | tail -1)
 echo "Newest upstream tag: ${NEWEST_UPSTREAM}" >&2
 
 # ── 5. Emit JSON matrix ──────────────────────────────────────────────────────
+export MISSING_TAGS_RAW="$MISSING_TAGS"
+export NEWEST_TAG="$NEWEST_UPSTREAM"
+# IMAGE_OWNER is already in the environment from the caller or the default above.
+
 python3 - <<'PYEOF'
 import os, sys, json
 
