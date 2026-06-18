@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cd app && npm run dev",
     "build": "cd app && npm run build",
+    "serve:dist": "cd app && npm run serve:dist",
     "test": "tsc -b . && prettier --check . && cd app && npm test",
     "postinstall": "npm run install:app && npm run install:bin",
     "lint": "cd app && eslint .",

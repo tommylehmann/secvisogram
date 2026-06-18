@@ -33,7 +33,8 @@ jobs:
           node-version: '24'
       - run: npm ci
       - run: sudo apt-get install xvfb
-      - run: npm run dev &
+      - run: npm run-script build
+      - run: npm run serve:dist &
       - uses: ifaxity/wait-on-action@v1.1.0
         with:
           delay: 1
