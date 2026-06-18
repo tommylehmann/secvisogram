@@ -114,9 +114,9 @@ Please refer to [`DEVELOPMENT.md`](DEVELOPMENT.md) for a detailed description on
 
 ### Run locally with Docker (`make docker`)
 
-For a quick local container there is a `Makefile` wrapper around
-[`docker/Dockerfile`](docker/Dockerfile). It builds a production bundle and
-serves it with a non-root nginx on port 8080 inside the container.
+For a quick local container there is a `Makefile` wrapper around the root
+[`Dockerfile`](Dockerfile). It builds a production bundle and serves it with
+nginx on port 80 inside the container.
 
 ```sh
 make docker            # build the image and run it in the foreground
@@ -132,10 +132,9 @@ make docker HOST_PORT=9000
 ```
 
 The image tag is derived from the current git branch (e.g. `main-fork` ->
-`secvisogram:main-fork`), matching [`docker/build_container.sh`](docker/build_container.sh),
-which additionally tags release builds from annotated git tags. The bundled
-version string shown in the _About_ dialog comes from `git describe`, so the
-`.git` directory is part of the build context.
+`secvisogram:main-fork`). The bundled version string shown in the _About_
+dialog comes from `git describe`, so the `.git` directory is part of the
+build context.
 
 ### Configure keybindings
 
