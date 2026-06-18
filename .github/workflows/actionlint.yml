@@ -1,0 +1,29 @@
+name: Lint GitHub Actions workflows
+
+# C7: pull_request trigger is safe here – this workflow has contents:read only,
+# no registry/sync permissions, and runs no privileged build.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - main-fork
+    paths:
+      - '.github/**'
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run actionlint
+        # raven-actions/actionlint v2.1.2 – SHA-pinned per C1/SA-8.
+        uses: raven-actions/actionlint@205b530c5d9fa8f44ae9ed59f341a0db994aa6f8
+        with:
+          flags: '-color'
