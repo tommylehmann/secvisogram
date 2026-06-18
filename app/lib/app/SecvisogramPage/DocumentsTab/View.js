@@ -50,7 +50,6 @@ export default function DocumentsTabView({
   defaultData = null,
   onOpenAdvisory,
   onGetData,
-  onGetMoreData,
   onDeleteAdvisory,
   onChangeWorkflowState,
   onCreateNewVersion,
@@ -63,34 +62,6 @@ export default function DocumentsTabView({
   )
   const [data, setData] = React.useState(defaultData)
   const [isLoading, setLoading] = React.useState(!defaultData)
-  // Tracks only the in-flight "Load more" page so already-rendered rows stay
-  // visible while the next page loads.
-  const [isLoadingMore, setLoadingMore] = React.useState(false)
-
-  /**
-   * Loads the next page and appends its rows to the currently
-   * rendered list, keeping the already-loaded rows visible.
-   */
-  const onLoadMore = () => {
-    if (!data?.hasMore) return
-    setLoadingMore(true)
-    onGetMoreData({ bookmark: data.bookmark })
-      .then((nextPage) => {
-        setData((current) =>
-          current
-            ? {
-                advisories: [...current.advisories, ...nextPage.advisories],
-                bookmark: nextPage.bookmark,
-                hasMore: nextPage.hasMore,
-              }
-            : nextPage,
-        )
-      })
-      .catch(handleError)
-      .finally(() => {
-        setLoadingMore(false)
-      })
-  }
 
   const { visibility, setColumnVisible } = useColumnVisibility()
 
@@ -248,19 +219,6 @@ export default function DocumentsTabView({
                   ))}
                 </tbody>
               </table>
-              {data?.hasMore && (
-                <div className="flex justify-center py-4">
-                  <button
-                    className="underline disabled:opacity-50"
-                    type="button"
-                    data-testid="advisory-list-load_more_button"
-                    disabled={isLoadingMore}
-                    onClick={onLoadMore}
-                  >
-                    {isLoadingMore ? t('menu.loading') : t('menu.loadMore')}
-                  </button>
-                </div>
-              )}
             </div>
             {isLoading && <LoadingIndicator label="Loading ..." />}
           </>
