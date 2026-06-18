@@ -13,6 +13,13 @@ inputs:
   ref:
     description: 'Git ref (tag or commit SHA) to check out and build'
     required: true
+  repository:
+    description: >
+      Repository to check out the ref from (owner/name). Defaults to the
+      workflow's repository (the fork). Vanilla builds pass the upstream repo
+      so that new upstream tags absent from the fork can still be built.
+    required: false
+    default: ${{ github.repository }}
   tags:
     description: 'Newline-separated list of fully-qualified image refs to push'
     required: true
@@ -34,6 +41,7 @@ runs:
     - name: Checkout ref with full history and submodules
       uses: actions/checkout@v4
       with:
+        repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
         fetch-depth: 0
         submodules: 'recursive'
