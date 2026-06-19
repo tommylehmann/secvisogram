@@ -153,40 +153,50 @@ export async function deleteAdvisory({ advisoryId, revision }) {
   ).send()
 }
 
-/**
- * Fetches advisories from the CMS backend.
- *
- * Backward-compatible by design: called with no arguments (or
- * without a `limit`) it preserves the legacy behaviour and resolves to the
- * bare `AdvisoryDocumentInformation[]` array. When a `limit` is provided it
- * opts into the paginated wire contract and resolves to the page envelope
- * `{ advisories, bookmark, hasMore }`; pass the previous page's `bookmark`
- * (opaque, echoed back verbatim) to fetch the next page.
- *
- * @param {object} [options]
- * @param {number} [options.limit] Max visible rows per page (1–1000).
- *   When omitted, the legacy bare-array response is returned.
- * @param {string | null} [options.bookmark] Opaque cursor from the previous
- *   page. Ignored unless `limit` is provided.
- * @returns {Promise<
- *   | Array<object>
- *   | { advisories: Array<object>, bookmark: string | null, hasMore: boolean }
- * >}
- */
-export async function getAdvisories(options) {
-  let requestUrl = '/api/v1/advisories'
-  if (options && typeof options.limit === 'number') {
-    const apiURL = new URL('/api/v1/advisories', window.location.href)
-    apiURL.searchParams.set('limit', String(options.limit))
-    if (typeof options.bookmark === 'string') {
-      apiURL.searchParams.set('bookmark', options.bookmark)
-    }
-    requestUrl = apiURL.toString()
-  }
-  const res = await new CsrfApiRequest(new Request(requestUrl))
+export async function getAdvisories() {
+  const res = await new CsrfApiRequest(new Request('/api/v1/advisories'))
     .setContentType('application/json')
     .send()
   return await res.json()
+}
+
+/**
+ * Resolves a CSAF document tracking id to the matching advisory's internal
+ * UUID by querying the list endpoint with an exact-match filter expression.
+ * The filter is built as a structured object and JSON-encoded — the tracking id
+ * is never interpolated into the expression string.
+ *
+ * The list endpoint returns only current advisories (not per-version backup
+ * docs), so a real tracking id should yield exactly one result. If more than
+ * one is returned (data anomaly), the first is used and a warning is logged.
+ *
+ * @param {object} params
+ * @param {string} params.trackingId
+ * @returns {Promise<string | null>} the matching advisoryId, or null if none
+ */
+export async function resolveAdvisoryIdByTrackingId({ trackingId }) {
+  const expression = JSON.stringify({
+    type: 'Operator',
+    selector: ['csaf', 'document', 'tracking', 'id'],
+    operatorType: 'Equal',
+    value: trackingId,
+    valueType: 'Text',
+  })
+  const url = new URL('/api/v1/advisories', window.location.href)
+  url.searchParams.set('expression', expression)
+  const res = await new CsrfApiRequest(new Request(url.toString()))
+    .setContentType('application/json')
+    .send()
+  const advisories = await res.json()
+  if (!advisories || advisories.length === 0) {
+    return null
+  }
+  if (advisories.length > 1) {
+    console.warn(
+      'resolveAdvisoryIdByTrackingId: multiple advisories matched the requested tracking id; using the first',
+    )
+  }
+  return advisories[0].advisoryId
 }
 
 export async function callAboutInfo() {

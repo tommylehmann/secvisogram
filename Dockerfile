@@ -1,5 +1,5 @@
 # 1. Builder image
-FROM node:22-alpine AS compile-image
+FROM node:24-alpine AS compile-image
 
  # install git
 RUN apk update; \
@@ -21,6 +21,6 @@ RUN npm ci; \
     npm run build
 
 # start secvisogram in docker
-FROM nginx:alpine
+FROM nginx:1.29-alpine
 # configure access to csaf-validator-service on localhost
 COPY --from=compile-image  /work/app/dist /usr/share/nginx/html

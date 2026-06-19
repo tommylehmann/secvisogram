@@ -1,8 +1,6 @@
 import { t } from 'i18next'
 import React from 'react'
 import AppErrorContext from '../../shared/context/AppErrorContext.js'
-import HistoryContext from '../../shared/context/HistoryContext.js'
-import sitemap from '../../shared/sitemap.js'
 import { columns as columnDefinitions } from './columns.js'
 import useColumnVisibility from './useColumnVisibility.js'
 import useSort from './useSort.js'
@@ -50,12 +48,10 @@ export default function DocumentsTabView({
   defaultData = null,
   onOpenAdvisory,
   onGetData,
-  onGetMoreData,
   onDeleteAdvisory,
   onChangeWorkflowState,
   onCreateNewVersion,
 }) {
-  const history = React.useContext(HistoryContext)
   const { handleError } = React.useContext(AppErrorContext)
 
   const [alert, setAlert] = React.useState(
@@ -63,34 +59,6 @@ export default function DocumentsTabView({
   )
   const [data, setData] = React.useState(defaultData)
   const [isLoading, setLoading] = React.useState(!defaultData)
-  // Tracks only the in-flight "Load more" page so already-rendered rows stay
-  // visible while the next page loads.
-  const [isLoadingMore, setLoadingMore] = React.useState(false)
-
-  /**
-   * Loads the next page and appends its rows to the currently
-   * rendered list, keeping the already-loaded rows visible.
-   */
-  const onLoadMore = () => {
-    if (!data?.hasMore) return
-    setLoadingMore(true)
-    onGetMoreData({ bookmark: data.bookmark })
-      .then((nextPage) => {
-        setData((current) =>
-          current
-            ? {
-                advisories: [...current.advisories, ...nextPage.advisories],
-                bookmark: nextPage.bookmark,
-                hasMore: nextPage.hasMore,
-              }
-            : nextPage,
-        )
-      })
-      .catch(handleError)
-      .finally(() => {
-        setLoadingMore(false)
-      })
-  }
 
   const { visibility, setColumnVisible } = useColumnVisibility()
 
@@ -152,9 +120,10 @@ export default function DocumentsTabView({
    * @param {string} params.advisoryId
    */
   const onEditAdvisory = ({ advisoryId }) => {
-    onOpenAdvisory({ advisoryId }, () => {
-      history.pushState(null, '', sitemap.home.href([['tab', 'EDITOR']]))
-    })
+    // The callback is intentionally empty: the caller (View.onOpenAdvisory)
+    // already pushes ?tab=EDITOR&trackingId=<id> via onAdvisoryUrlChange before
+    // invoking the callback. A second pushState here would overwrite trackingId.
+    onOpenAdvisory({ advisoryId }, () => {})
   }
 
   return (
@@ -248,19 +217,6 @@ export default function DocumentsTabView({
                   ))}
                 </tbody>
               </table>
-              {data?.hasMore && (
-                <div className="flex justify-center py-4">
-                  <button
-                    className="underline disabled:opacity-50"
-                    type="button"
-                    data-testid="advisory-list-load_more_button"
-                    disabled={isLoadingMore}
-                    onClick={onLoadMore}
-                  >
-                    {isLoadingMore ? t('menu.loading') : t('menu.loadMore')}
-                  </button>
-                </div>
-              )}
             </div>
             {isLoading && <LoadingIndicator label="Loading ..." />}
           </>

@@ -1,0 +1,91 @@
+name: Publish vanilla images
+
+# Runs from main-fork (the default branch) so schedule triggers fire.
+# A discovery job lists upstream stable v* tags, queries GHCR for already-
+# published tags (source of truth – no committed state file; ADR 0009), and
+# fans out a matrix build for each missing tag.
+#
+# Floor rule: a scheduled run builds only tags newer than the highest already-
+# published vanilla tag; on first run (nothing published yet) it builds the
+# single newest stable tag.  Historical backfill is opt-in via workflow_dispatch
+# with an explicit tags input.  Pre-release tags (v*-rc.*, v*-beta.*) are
+# excluded from default discovery and never promoted to :latest.
+#
+# Security: C2 (packages:write + contents:read only), C3 (no ${{}} in run),
+# C4 (persist-credentials:false in the build action), C7 (no pull_request
+# trigger), C9 (discovery fails closed on GHCR error).
+
+on:
+  schedule:
+    # 05:47 UTC daily – after upstream-sync (05:17) and before CodeQL (06:24 Mon)
+    - cron: '47 5 * * *'
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: >
+          Comma-separated list of upstream v* tags to build (e.g. "v2.6.3,v2.6.4").
+          Leave empty to build all tags missing from GHCR (default behaviour).
+        required: false
+        default: ''
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  discover:
+    name: Discover missing vanilla tags
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.compute.outputs.matrix }}
+    steps:
+      - name: Checkout main-fork (for the script)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Compute missing tags
+        id: compute
+        # C3: untrusted values (inputs.tags, actor) are passed via env, not
+        # interpolated into the run body.
+        # C9: the script exits non-zero on any GHCR query error, preventing a
+        # false-empty response from triggering a full rebuild.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          REPO_OWNER: tommylehmann
+          IMAGE_OWNER: tommylehmann
+          MANUAL_TAGS: ${{ inputs.tags }}
+        run: |
+          MATRIX=$(bash .github/scripts/list-missing-vanilla-tags.sh)
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.tag }}
+    needs: discover
+    # F7: use fromJson existence check rather than an exact JSON-whitespace comparison.
+    if: ${{ fromJson(needs.discover.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      # The local composite action lives on main-fork, not on the upstream v*
+      # tag, so it must be checked out before `uses: ./...` can resolve it.
+      # persist-credentials:false – we only need the action files, no git cred.
+      - name: Checkout main-fork (for the local build action)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Build and push vanilla image
+        uses: ./.github/actions/build-secvisogram-image
+        with:
+          # Build the tag from upstream: new upstream tags are not mirrored to
+          # the fork (the sync only mirrors the main branch, not tags).
+          repository: secvisogram/secvisogram
+          ref: ${{ matrix.tag }}
+          flavor: vanilla
+          version: ${{ matrix.version }}
+          tags: ${{ matrix.tags }}
