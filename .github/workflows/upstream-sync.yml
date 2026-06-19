@@ -18,8 +18,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # push to origin/main
-  issues: write    # create/update tracking issue on divergence
+  contents: write # push to origin/main
+  issues: write # create/update tracking issue on divergence
 
 jobs:
   sync:
