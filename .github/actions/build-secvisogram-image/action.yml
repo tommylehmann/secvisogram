@@ -1,0 +1,95 @@
+name: Build and push secvisogram image
+description: >
+  Checks out a tagged commit (full history + submodules so git describe works),
+  logs in to GHCR, builds the root Dockerfile, and pushes OCI-labelled images.
+
+  Cache policy (C12): no GHA buildx cache is configured.  The vanilla build
+  executes untrusted upstream code; enabling a shared cache would let that build
+  poison the cache for a subsequent fork build.  Omitting cache avoids
+  cross-flavor contamination entirely (T1.2).  Build times remain acceptable for
+  a single-platform linux/amd64 build.
+
+inputs:
+  ref:
+    description: 'Git ref (tag or commit SHA) to check out and build'
+    required: true
+  repository:
+    description: >
+      Repository to check out the ref from (owner/name). Defaults to the
+      workflow's repository (the fork). Vanilla builds pass the upstream repo
+      so that new upstream tags absent from the fork can still be built.
+    required: false
+    default: ${{ github.repository }}
+  tags:
+    description: 'Newline-separated list of fully-qualified image refs to push'
+    required: true
+  flavor:
+    description: '"vanilla" or "fork" – written to the org.secvisogram.flavor label'
+    required: true
+  version:
+    description: 'Version string (the git tag) written to the OCI version label'
+    required: true
+
+outputs:
+  revision:
+    description: 'Commit SHA of the checked-out ref (for provenance)'
+    value: ${{ steps.revision.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+    # Check out the build source into a subdirectory (_src), NOT the workspace
+    # root. The caller has already checked out main-fork at the root to make
+    # this local action resolvable; checking the (possibly upstream) build ref
+    # into the root would overwrite the action dir and break its post-step
+    # cleanup ("can't find action.yml" in the Post phase).
+    - name: Checkout ref with full history and submodules
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
+        path: _src
+        fetch-depth: 0
+        submodules: 'recursive'
+        # C4: persist-credentials false so the build container has no usable
+        # git push credential in .git/config (untrusted upstream code runs
+        # next via npm ci && npm run build inside the Dockerfile).
+        persist-credentials: false
+
+    - name: Capture commit SHA of the checked-out ref
+      id: revision
+      shell: bash
+      run: |
+        SHA=$(git -C _src rev-parse HEAD)
+        echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      # docker/setup-buildx-action v4.1.0
+      uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
+
+    - name: Log in to GHCR
+      # docker/login-action v4.2.0
+      # C11: only GITHUB_TOKEN is used – no external registry secret.
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Build and push
+      # docker/build-push-action v7.2.0
+      # C10: OCI provenance labels are mandatory (not best-effort).
+      # C11: no build-args carry tokens or secrets.
+      # C12: no cache-from / cache-to configured (see action description).
+      uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+      with:
+        context: _src
+        file: _src/Dockerfile
+        platforms: linux/amd64
+        push: true
+        tags: ${{ inputs.tags }}
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ steps.revision.outputs.sha }}
+          org.opencontainers.image.version=${{ inputs.version }}
+          org.secvisogram.flavor=${{ inputs.flavor }}

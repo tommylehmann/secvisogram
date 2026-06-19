@@ -13,6 +13,8 @@
   - [Preview HTML view](#preview-html-view)
   - [CSAF Document JSON view](#csaf-document-json-view)
   - [Templates](#templates)
+  - [Advisory Permalinks](#advisory-permalinks)
+  - [Strict CSAF 2.0 Validation](#strict-csaf-20-validation)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
   - [Developer Guide, Architecture and Technical Design](#developer-guide-architecture-and-technical-design)
@@ -110,6 +112,30 @@ Please refer to [`DEVELOPMENT.md`](DEVELOPMENT.md) for a detailed description on
 
 4. Secvisogram starts on http://localhost:8080
 5. In Secvisogram, the validation by the validator service can be executed with hotkey CTRL + ALT + V.
+
+### Run locally with Docker (`make docker`)
+
+For a quick local container there is a `Makefile` wrapper around the root
+[`Dockerfile`](Dockerfile). It builds a production bundle and serves it with
+nginx on port 80 inside the container.
+
+```sh
+make docker            # build the image and run it in the foreground
+```
+
+Then open http://localhost:8081. The host port and image name can be
+overridden:
+
+```sh
+make docker-build      # build only
+make docker-run        # run only
+make docker HOST_PORT=9000
+```
+
+The image tag is derived from the current git branch (e.g. `main-fork` ->
+`secvisogram:main-fork`). The bundled version string shown in the _About_
+dialog comes from `git describe`, so the `.git` directory is part of the
+build context.
 
 ### Configure keybindings
 
@@ -230,6 +256,67 @@ You can use this view and the embedded _Export CSAF_ button to always quickly ex
 ### Templates
 
 Secvisogram provides some very basic templates. You can use your own templates by saving them as JSON files on your filesystem and load using the "Upload from filesystem" in the "Create new document" dialog of the editor.
+
+[(back to top)](#bsi-secvisogram-csaf-20-web-editor)
+
+### Advisory Permalinks
+
+When using Secvisogram with the [CSAF CMS Server](https://github.com/secvisogram/csaf-cms-backend) backend, logged-in users can generate shareable deep links to specific advisories.
+
+#### Overview
+
+Advisory permalinks are **authorized deep links** to a specific advisory. The recipient must be logged in and have read access to that advisory to open it. Permalinks use the advisory's CSAF document tracking ID, so they always open the latest version.
+
+#### URL Format
+
+A permalink follows the pattern:
+
+    /?tab=EDITOR&trackingId=<CSAF document tracking id>
+
+Replace `<CSAF document tracking id>` with the human-readable tracking ID from your advisory (the `csaf/document/tracking/id` field).
+
+#### Getting a Permalink
+
+The **Copy link** button in the editor toolbar copies the current advisory's permalink to the clipboard. The button is visible only when:
+
+- The CMS backend is configured and accessible (`loginAvailable: true` in config)
+- You are logged in
+- An advisory is open in the editor
+- The advisory has a real (non-temporary) tracking ID
+
+Advisories with a temporary tracking ID (marked with a `-TEMP-` segment) are not yet shareable; the button is hidden until a real tracking ID is assigned.
+
+#### Sharing and Access Control
+
+The permalink is **not a public link**. When someone follows your permalink:
+
+- They must be logged in to the same CMS backend
+- They must have read access to that advisory
+- If they are not logged in, they are redirected to the login page and the advisory opens after authentication
+- If they lack read access, or the tracking ID cannot be found, they see the same "advisory not found or not accessible" message and the editor opens with a fresh document. The two cases are intentionally indistinguishable, so a permalink cannot be used to probe whether an advisory exists.
+
+#### Standalone Mode
+
+If Secvisogram is running in standalone mode (no backend configured), advisory permalinks are not available:
+
+- The **Copy link** button is not shown
+- Pasted permalink URLs are ignored; the editor opens with a fresh document
+
+[(back to top)](#bsi-secvisogram-csaf-20-web-editor)
+
+### Strict CSAF 2.0 Validation
+
+Secvisogram validates CSAF 2.0 documents against a **strict** variant of the CSAF 2.0 JSON schema (`csaf_2_0_strict`). This strict schema sets `additionalProperties: false` on all objects, which means Secvisogram will reject any CSAF document that contains properties not defined in the CSAF 2.0 JSON schema.
+
+This corresponds to the optional spec test [6.2.20 "Additional Properties"](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#6220-additional-properties) from the CSAF 2.0 specification, which states:
+
+> It MUST be tested that there is no additional property in any part of the CSAF document that is not defined in the CSAF JSON schema.
+
+The CSAF 2.0 specification deems it sufficient to implement this test by validating against a strict schema that sets `additionalProperties` to `false` for every object. Secvisogram applies this approach unconditionally for CSAF 2.0 documents.
+
+This is a deliberate strategic choice: CSAF 2.1 already prohibits additional properties at the schema level, and [section 2.1 of the CSAF 2.0 specification](https://docs.oasis-open.org/csaf/csaf/v2.0/os/csaf-v2.0-os.html#21-construction-principles) explicitly states that even though the JSON schema does not prohibit additional properties, it is _"strongly recommended not to use them"_.
+
+**Important**: Because test 6.2.20 is an _optional_ spec test, a CSAF 2.0 document containing additional properties is still technically spec-compliant. Secvisogram intentionally applies stricter validation — a document flagged as invalid by Secvisogram due to additional properties may still be accepted by other CSAF-conformant tools.
 
 ## Documentation
 

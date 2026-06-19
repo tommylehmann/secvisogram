@@ -10,9 +10,11 @@ import AppConfigContext from '../shared/context/AppConfigContext.js'
 import AppErrorContext from '../shared/context/AppErrorContext.js'
 import UserInfoContext from '../shared/context/UserInfoContext.js'
 import externalJsonToFile from '../shared/externalJsonToFile.js'
+import sitemap from '../shared/sitemap.js'
 import { canCreateDocuments } from '../shared/permissions.js'
 import pruneEmpty from '../shared/pruneEmpty.js'
 import isPropertyRelevant from './shared/isPropertyRelevant.js'
+import isShareableTrackingId from './shared/isShareableTrackingId.js'
 import AboutDialog from './View/AboutDialog.js'
 import BetaVersionConfirmationDialog from './View/BetaVersionConfirmationDialog.js'
 import CsafTab from './View/CsafTab.js'
@@ -77,6 +79,7 @@ function View({
   pendingBeta21Doc,
   onConfirmBeta21Open,
   onCancelBeta21Open,
+  onAdvisoryUrlChange,
   ...props
 }) {
   const appConfig = React.useContext(AppConfigContext)
@@ -160,6 +163,19 @@ function View({
       }
     ),
   )
+  // When a permalink-loaded advisory arrives asynchronously via
+  // defaultAdvisoryState (SecvisogramPage's async resolution effect), apply it
+  // to the local advisoryState. Only non-null values are applied so that
+  // subsequent re-renders that keep defaultAdvisoryState null do not reset state.
+  React.useEffect(() => {
+    if (defaultAdvisoryState) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAdvisoryState(defaultAdvisoryState)
+    }
+  }, [defaultAdvisoryState])
+  // Subsequent data changes (e.g. onOpen replacing the doc) reset advisory
+  // state. The [defaultAdvisoryState] effect above handles async permalink
+  // loads separately so the two effects do not conflict.
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAdvisoryState((state) =>
@@ -321,6 +337,7 @@ function View({
                     type: 'ADVISORY',
                     advisory,
                   })
+                  onAdvisoryUrlChange(advisory)
                 }),
               )
               .catch(handleError)
@@ -353,6 +370,7 @@ function View({
                     type: 'ADVISORY',
                     advisory,
                   })
+                  onAdvisoryUrlChange(advisory)
                 }),
               )
               .catch(handleError)
@@ -559,6 +577,10 @@ function View({
    * @param {() => void} callback
    */
   const confirmDocumentReplacement = (callback) => {
+    const doReplace = () => {
+      onAdvisoryUrlChange(null)
+      callback()
+    }
     if (formValues !== originalValues) {
       setAlert(
         <Alert
@@ -572,12 +594,12 @@ function View({
             setAlert(null)
             resetProductIdCounter()
             resetGroupIdCounter()
-            callback()
+            doReplace()
           }}
         />,
       )
     } else {
-      callback()
+      doReplace()
     }
   }
 
@@ -943,7 +965,9 @@ function View({
                           <option key={uiVersion} value={uiVersion}>
                             {uiVersion === 'v2.1'
                               ? `${uiVersion} (Beta)`
-                              : uiVersion}
+                              : uiVersion === 'v2.0'
+                                ? `${uiVersion}-strict`
+                                : uiVersion}
                           </option>
                         ))}
                       </select>
@@ -1110,6 +1134,44 @@ function View({
                           {t('menu.validate')}
                         </button>
                       )}
+                      {appConfig.loginAvailable &&
+                        userInfo &&
+                        advisoryState?.type === 'ADVISORY' &&
+                        isShareableTrackingId(
+                          advisoryState.advisory.csaf.document?.tracking?.id,
+                        ) && (
+                          <button
+                            data-testid="copy_permalink_button"
+                            type="button"
+                            className="text-gray-300 hover:bg-slate-700 hover:text-white text-sm font-bold p-2 h-auto"
+                            onClick={() => {
+                              // isShareableTrackingId gate above ensures this
+                              // is a non-empty, non-temp string.
+                              const trackingId =
+                                advisoryState.advisory.csaf.document?.tracking
+                                  ?.id ?? ''
+                              const url =
+                                window.location.origin +
+                                sitemap.home.href([
+                                  ['tab', 'EDITOR'],
+                                  ['trackingId', trackingId],
+                                ])
+                              navigator.clipboard
+                                .writeText(url)
+                                .then(() => {
+                                  setToast({
+                                    message: t('menu.permalinkCopied'),
+                                    color: 'green',
+                                  })
+                                })
+                                .catch((/** @type {any} */ err) => {
+                                  handleError(err)
+                                })
+                            }}
+                          >
+                            {t('menu.copyLink')}
+                          </button>
+                        )}
                     </div>
                     {activeTab === 'EDITOR' ? (
                       <div className="text-gray-300 font-bold text-sm h-9">
@@ -1228,6 +1290,11 @@ function View({
                         return onLoadAdvisory({ advisoryId })
                           .then((advisory) => {
                             setAdvisoryState({ type: 'ADVISORY', advisory })
+                            // Pass 'EDITOR' as the target tab so the single
+                            // pushState carries both tab=EDITOR and trackingId.
+                            // The callback must not push a second history entry
+                            // that would overwrite the trackingId.
+                            onAdvisoryUrlChange(advisory, 'EDITOR')
                             callback()
                           })
                           .catch(handleError)

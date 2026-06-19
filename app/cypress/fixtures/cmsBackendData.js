@@ -62,6 +62,8 @@ export function getGetAdvisoriesResponse(userName) {
         ? canCreateVersion({ userName, workflowState: advisory.workflowState })
         : false,
     allowedStateChanges: advisory.allowedStateChanges,
+    version: advisory.version,
+    currentReleaseDate: advisory.currentReleaseDate,
   }))
 }
 

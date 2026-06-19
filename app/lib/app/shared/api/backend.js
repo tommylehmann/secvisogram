@@ -160,6 +160,45 @@ export async function getAdvisories() {
   return await res.json()
 }
 
+/**
+ * Resolves a CSAF document tracking id to the matching advisory's internal
+ * UUID by querying the list endpoint with an exact-match filter expression.
+ * The filter is built as a structured object and JSON-encoded — the tracking id
+ * is never interpolated into the expression string.
+ *
+ * The list endpoint returns only current advisories (not per-version backup
+ * docs), so a real tracking id should yield exactly one result. If more than
+ * one is returned (data anomaly), the first is used and a warning is logged.
+ *
+ * @param {object} params
+ * @param {string} params.trackingId
+ * @returns {Promise<string | null>} the matching advisoryId, or null if none
+ */
+export async function resolveAdvisoryIdByTrackingId({ trackingId }) {
+  const expression = JSON.stringify({
+    type: 'Operator',
+    selector: ['csaf', 'document', 'tracking', 'id'],
+    operatorType: 'Equal',
+    value: trackingId,
+    valueType: 'Text',
+  })
+  const url = new URL('/api/v1/advisories', window.location.href)
+  url.searchParams.set('expression', expression)
+  const res = await new CsrfApiRequest(new Request(url.toString()))
+    .setContentType('application/json')
+    .send()
+  const advisories = await res.json()
+  if (!advisories || advisories.length === 0) {
+    return null
+  }
+  if (advisories.length > 1) {
+    console.warn(
+      'resolveAdvisoryIdByTrackingId: multiple advisories matched the requested tracking id; using the first',
+    )
+  }
+  return advisories[0].advisoryId
+}
+
 export async function callAboutInfo() {
   return await new ApiRequest(new Request('/api/v1/about'))
     .setContentType('application/json')

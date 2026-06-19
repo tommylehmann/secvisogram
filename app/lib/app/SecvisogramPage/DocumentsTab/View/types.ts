@@ -1,6 +1,7 @@
 interface Data {
   advisories: Array<{
     advisoryId: string
+    documentTrackingId: string
     title: string
     owner: string
     workflowState: string
@@ -8,6 +9,8 @@ interface Data {
     deletable: boolean
     canCreateVersion: boolean
     currentReleaseDate: string
+    version?: string
+    lastEdit?: string
   }>
 }
 
