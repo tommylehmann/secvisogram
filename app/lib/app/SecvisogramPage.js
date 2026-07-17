@@ -3,17 +3,12 @@ import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import createFileName from '../shared/createFileName.js'
 import DocumentsTab from './SecvisogramPage/DocumentsTab.js'
-import isShareableTrackingId from './SecvisogramPage/shared/isShareableTrackingId.js'
 import { loadAdvisory } from './SecvisogramPage/service.js'
 import View from './SecvisogramPage/View.js'
 import { backend, validationService } from './shared/api.js'
 import ApiRequest from './shared/ApiRequest.js'
-import AppConfigContext from './shared/context/AppConfigContext.js'
 import AppErrorContext from './shared/context/AppErrorContext.js'
 import HistoryContext from './shared/context/HistoryContext.js'
-import UserInfoContext, {
-  UserInfoSettledContext,
-} from './shared/context/UserInfoContext.js'
 import downloadFile from './shared/download.js'
 import sitemap from './shared/sitemap.js'
 
@@ -24,9 +19,6 @@ import sitemap from './shared/sitemap.js'
 const SecvisogramPage = () => {
   const { pushState, location } = React.useContext(HistoryContext)
   const { t } = useTranslation()
-  const appConfig = React.useContext(AppConfigContext)
-  const userInfo = React.useContext(UserInfoContext)
-  const userInfoSettled = React.useContext(UserInfoSettledContext)
   const searchParams = new URL(location.href).searchParams
   const [
     {
@@ -89,105 +81,6 @@ const SecvisogramPage = () => {
     }
   }, [t])
 
-  // Permalink initial load: if ?trackingId= is present in server mode, handle
-  // based on auth state once it has settled:
-  //   - logged-out  → redirect to loginUrl (AC5)
-  //   - logged-in   → resolve tracking id and load advisory
-  //   - standalone  → ignore (AC6)
-  //
-  // NOTE: App renders SecvisogramPage inside context providers populated by
-  // async effects (getAppConfig, getUserInfo). The first render therefore sees
-  // the context defaults (loginAvailable: false, userInfo: null). We wait for
-  // userInfoSettled to become true before acting, so we never confuse "auth
-  // not yet settled" with "settled and definitely logged out". hasLoadedRef
-  // ensures the one-shot resolution fires at most once even as deps re-settle.
-  const trackingIdParam = searchParams.get('trackingId')
-  const [defaultAdvisoryState, setDefaultAdvisoryState] = React.useState(
-    /** @type {import('./SecvisogramPage/shared/types.js').AdvisoryState | null} */ (
-      null
-    ),
-  )
-  const [permalinkLoading, setPermalinkLoading] = React.useState(false)
-  const hasLoadedRef = React.useRef(false)
-  React.useEffect(() => {
-    // Wait until trackingId is present, server mode is confirmed, and auth has
-    // fully settled (getUserInfo completed in App).
-    if (!trackingIdParam || !appConfig.loginAvailable || !userInfoSettled)
-      return
-    if (hasLoadedRef.current) return
-    hasLoadedRef.current = true
-
-    // AC5: settled auth with no user → redirect to login so the advisory opens
-    // after sign-in. The server login flow is expected to return the user to
-    // the current permalink URL.
-    if (!userInfo) {
-      window.location.href = appConfig.loginUrl
-      return
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPermalinkLoading(true)
-    backend
-      .resolveAdvisoryIdByTrackingId({ trackingId: trackingIdParam })
-      .then((advisoryId) => {
-        if (!advisoryId) {
-          // No match — treat as not found
-          const notFoundError = /** @type {any} */ (
-            new Error(t('error.advisoryNotFound'))
-          )
-          notFoundError.status = 404
-          return Promise.reject(notFoundError)
-        }
-        return loadAdvisory({ advisoryId })
-      })
-      .then((advisory) => {
-        setDefaultAdvisoryState({ type: 'ADVISORY', advisory })
-      })
-      .catch((/** @type {any} */ error) => {
-        if (error.status === 401 && appConfig.loginAvailable) {
-          window.location.href = appConfig.loginUrl
-          return
-        }
-        // 403, 404, and no-match all collapse to the same generic message so
-        // there is no observable discrepancy between "not found" and "not
-        // authorized" (defense-in-depth per plan's generic-handling intent).
-        if (error.status === 403 || error.status === 404) {
-          handleError({ message: t('error.advisoryNotAccessible') })
-        } else {
-          handleError(error)
-        }
-      })
-      .finally(() => {
-        setPermalinkLoading(false)
-      })
-    // Re-run when loginAvailable, userInfo, or userInfoSettled settle (async
-    // App effects). hasLoadedRef ensures resolution fires at most once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appConfig.loginAvailable, userInfo, userInfoSettled])
-
-  const onAdvisoryUrlChange = React.useCallback(
-    (
-      /** @type {import('./SecvisogramPage/shared/types.js').Advisory | null} */ advisory,
-      /** @type {string | undefined} */ targetTab,
-    ) => {
-      const tab = targetTab ?? searchParams.get('tab') ?? 'EDITOR'
-      const tid = advisory?.csaf.document?.tracking?.id
-      if (isShareableTrackingId(tid)) {
-        pushState(
-          null,
-          '',
-          sitemap.home.href([
-            ['tab', tab],
-            ['trackingId', /** @type {string} */ (tid)],
-          ]),
-        )
-      } else {
-        pushState(null, '', sitemap.home.href([['tab', tab]]))
-      }
-    },
-    [pushState, searchParams],
-  )
-
   return (
     <View
       uiSchemaVersion={uiSchemaVersion}
@@ -205,12 +98,11 @@ const SecvisogramPage = () => {
                   : 'EDITOR'
       }
       isTabLocked={isTabLocked}
-      isLoading={isLoading || permalinkLoading}
+      isLoading={isLoading}
       errors={errors}
       stripResult={stripResult}
       previewResult={previewResult}
       data={data}
-      defaultAdvisoryState={defaultAdvisoryState}
       alert={alert}
       DocumentsTab={DocumentsTab}
       generatorEngineData={core.getGeneratorEngineData()}
@@ -506,7 +398,6 @@ const SecvisogramPage = () => {
       onCancelBeta21Open={React.useCallback(() => {
         setState((state) => ({ ...state, pendingBeta21Doc: null }))
       }, [setState])}
-      onAdvisoryUrlChange={onAdvisoryUrlChange}
     />
   )
 }

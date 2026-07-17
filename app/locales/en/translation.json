@@ -32,8 +32,6 @@
     "useTemplate": "Use a template",
     "loadFromURL": "Load from URL",
     "examples": "Examples",
-    "copyLink": "Copy link",
-    "permalinkCopied": "Permalink copied to clipboard",
     "documentsTab": {
       "columns": {
         "title": "Document",
@@ -149,10 +147,7 @@
     "documentInvalidCantPublish": "The document is not valid and can therefore not be published.",
     "encounteredErrorWithCode": "Encountered an error with status code: ",
     "failedToLoadFromURL": "Failed to load from URL. The server may be unreachable or the resource cannot be accessed due to CORS restrictions.",
-    "invalidJSON": "Failed to parse JSON file.",
-    "advisoryNotFound": "Advisory not found.",
-    "advisoryNotAuthorized": "Not authorized to access this advisory.",
-    "advisoryNotAccessible": "Advisory not found or not accessible."
+    "invalidJSON": "Failed to parse JSON file."
   },
   "errorScreen": {
     "close": "Close",

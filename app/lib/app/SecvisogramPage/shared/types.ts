@@ -5,9 +5,6 @@ export type Advisory = {
   csaf: {
     document?: {
       title?: string
-      tracking?: {
-        id?: string
-      }
     }
   }
   documentTrackingId: string

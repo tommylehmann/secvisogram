@@ -92,13 +92,4 @@ export interface Props {
   onSetUiVersion(uiSchemaVersion: UiSchemaVersion): void
   onConfirmBeta21Open(): void
   onCancelBeta21Open(): void
-  /**
-   * Called after an advisory is opened, saved (create or update), or cleared
-   * (new document). The advisory whose tracking id should be reflected in the
-   * URL, or null when the editor returns to a fresh document.
-   *
-   * @param advisory - the advisory now open, or null for a fresh document
-   * @param targetTab - optional tab to navigate to; defaults to the current tab
-   */
-  onAdvisoryUrlChange(advisory: Advisory | null, targetTab?: string): void
 }

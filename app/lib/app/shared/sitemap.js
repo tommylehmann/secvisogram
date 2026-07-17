@@ -1,6 +1,6 @@
 import SitemapEntry from './sitemap/SitemapEntry.js'
 
 export default {
-  /** @type {SitemapEntry<'tab' | 'trackingId'>} */
+  /** @type {SitemapEntry<'tab'>} */
   home: new SitemapEntry('/'),
 }
