@@ -13,7 +13,7 @@ name: Sync upstream main
 
 on:
   schedule:
-    # 05:17 UTC daily – offset from CodeQL (06:24 Mon) and docker-vanilla (05:47)
+    # 05:17 UTC daily – offset from CodeQL (06:24 Mon)
     - cron: '17 5 * * *'
   workflow_dispatch:
 

@@ -3,28 +3,19 @@ description: >
   Checks out a tagged commit (full history + submodules so git describe works),
   logs in to GHCR, builds the root Dockerfile, and pushes OCI-labelled images.
 
-  Cache policy (C12): no GHA buildx cache is configured.  The vanilla build
-  executes untrusted upstream code; enabling a shared cache would let that build
-  poison the cache for a subsequent fork build.  Omitting cache avoids
-  cross-flavor contamination entirely (T1.2).  Build times remain acceptable for
-  a single-platform linux/amd64 build.
+  Cache policy (C12): no GHA buildx cache is configured.  Omitting the cache
+  keeps builds hermetic and avoids any risk of cache poisoning across runs.
+  Build times remain acceptable for a single-platform linux/amd64 build.
 
 inputs:
   ref:
     description: 'Git ref (tag or commit SHA) to check out and build'
     required: true
-  repository:
-    description: >
-      Repository to check out the ref from (owner/name). Defaults to the
-      workflow's repository (the fork). Vanilla builds pass the upstream repo
-      so that new upstream tags absent from the fork can still be built.
-    required: false
-    default: ${{ github.repository }}
   tags:
     description: 'Newline-separated list of fully-qualified image refs to push'
     required: true
   flavor:
-    description: '"vanilla" or "fork" – written to the org.secvisogram.flavor label'
+    description: 'Image flavor written to the org.secvisogram.flavor label (e.g. "fork")'
     required: true
   version:
     description: 'Version string (the git tag) written to the OCI version label'
@@ -40,13 +31,12 @@ runs:
   steps:
     # Check out the build source into a subdirectory (_src), NOT the workspace
     # root. The caller has already checked out main-fork at the root to make
-    # this local action resolvable; checking the (possibly upstream) build ref
-    # into the root would overwrite the action dir and break its post-step
-    # cleanup ("can't find action.yml" in the Post phase).
+    # this local action resolvable; checking the build ref into the root would
+    # overwrite the action dir and break its post-step cleanup ("can't find
+    # action.yml" in the Post phase).
     - name: Checkout ref with full history and submodules
       uses: actions/checkout@v5
       with:
-        repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
         path: _src
         fetch-depth: 0
